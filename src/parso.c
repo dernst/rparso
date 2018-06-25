@@ -51,6 +51,16 @@ void startJVM(const char *cp) {
 
 }
 
+int parso_num_rows(JNIEnv *env, jclass cls, jobject obj) {
+    jmethodID methodID = (*env)->GetMethodID(env, cls, "getNumRows", "()J");
+    if(methodID == NULL) {
+        return -1;
+    }
+
+    jlong l = (*env)->CallLongMethod(env, obj, methodID);
+    return (int)l;
+}
+
 void cb_set_int(JNIEnv *env, jobject obj, jlong ptr, jint num) {
     return;
 }
