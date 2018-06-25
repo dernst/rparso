@@ -1,5 +1,6 @@
 #include <Rinternals.h>
 #include <jni.h>
+#include <stdlib.h>
 
 JNIEnv* getEnv() {
     JavaVM *jvm = NULL;
@@ -27,6 +28,57 @@ JNIEnv* getEnv() {
     return env;
 }
 
+void startJVM(const char *cp) {
+    JavaVM *jvm;
+    JNIEnv *env;
+    char *cpopt = malloc(sizeof(char)*4096);
+    sprintf(cpopt, "-Djava.class.path=/usr/lib/java:%s", cp);
+
+    JavaVMInitArgs vm_args;
+    JavaVMOption options[2];
+    options[0].optionString = cpopt;
+    options[1].optionString = "-Xmx2g";
+
+    vm_args.version = JNI_VERSION_1_6;
+    vm_args.nOptions = 2;
+    vm_args.options = options;
+    vm_args.ignoreUnrecognized = FALSE;
+
+    jint ret = JNI_CreateJavaVM(&jvm, (void**)&env, &vm_args);
+    free(cpopt);
+
+    printf("ret = %d (jvm=%p)\n", ret, (void*)jvm);
+
+}
+
+void cb_set_int(JNIEnv *env, jobject obj, jlong ptr, jint num) {
+    return;
+}
+
+void cb_set_string(JNIEnv *env, jobject obj, jlong ptr, jstring str) {
+    if(str == NULL) {
+        //puts("> str NULL");
+        return;
+    }
+    const char *c = (*env)->GetStringUTFChars(env, str, NULL);
+    if(c == NULL) {
+        //puts("> c NULL");
+        return;
+    }
+    //printf("%s\n", c);
+    (*env)->ReleaseStringUTFChars(env, str, c);
+    return;
+}
+
+void cb_set_bytes(JNIEnv *env, jobject obj, jlong ptr, jbyteArray str) {
+}
+
+
+SEXP parso_init(SEXP cp) {
+    startJVM(CHAR(STRING_ELT(cp, 0)));
+    return R_NilValue;
+}
+
 SEXP parso_read_sas(SEXP filename) {
     if(!Rf_isString(filename)) {
         return R_NilValue;
@@ -41,6 +93,7 @@ SEXP parso_read_sas(SEXP filename) {
 
     jclass cls = (*env)->FindClass(env, "de/misc/rparso/BulkRead");
     //jclass cls = (*env)->FindClass(env, "com/epam/parso/SasFileReader");
+    //jclass cls = (*env)->FindClass(env, "RJavaClassLoader");
     if(cls == NULL) {
         puts("cls NULL");
         if((*env)->ExceptionOccurred(env))
@@ -59,11 +112,91 @@ SEXP parso_read_sas(SEXP filename) {
         puts("jfilename NULL");
         return R_NilValue;
     }
+
     jobject a = (*env)->NewObject(env, cls, methodID, jfilename);
     if(a == NULL) {
         puts("a is NULL");
+        return R_NilValue;
     }
 
+    JNINativeMethod my_natives[3];
+    my_natives[0].name = "cb_set_int";
+    my_natives[0].signature = "(JI)V";
+    my_natives[0].fnPtr = cb_set_int;
+
+    my_natives[1].name = "cb_set_string";
+    my_natives[1].signature = "(JLjava/lang/String;)V";
+    my_natives[1].fnPtr = cb_set_string;
+
+    my_natives[2].name = "cb_set_bytes";
+    my_natives[2].signature = "(J[B)V";
+    my_natives[2].fnPtr = cb_set_bytes;
+
+
+    if((*env)->RegisterNatives(env, cls, my_natives, 3) != 0) {
+        puts("RegisterNatives failed :(");
+        return R_NilValue;
+    }
+
+    methodID = (*env)->GetMethodID(env, cls, "read_all", "()I");
+    if(methodID == NULL) {
+        puts("cant find read_all method");
+        return R_NilValue;
+    }
+
+    jint rows_read = (*env)->CallIntMethod(env, a, methodID);
+    if((*env)->ExceptionOccurred(env)) {
+            (*env)->ExceptionDescribe(env);
+            (*env)->ExceptionClear(env);
+            return R_NilValue;
+    }
+
+    printf("%d rows read\n", rows_read);
+
+    /*
+    methodID = (*env)->GetMethodID(env, cls, "getReader",
+            "()Lcom/epam/parso/SasFileReader;");
+    if(methodID == NULL) {
+        puts("cant find getReader method");
+        return R_NilValue;
+    }
+
+    jobject rdr = (*env)->CallObjectMethod(env, a, methodID);
+    if(rdr == NULL) {
+        puts("getReader() == NULL");
+        return R_NilValue;
+    } 
+
+    jclass cls_sfr = (*env)->FindClass(env, "com/epam/parso/SasFileReader");
+    if(cls_sfr == NULL) {
+        puts("cant find sfr class");
+        return R_NilValue;
+    }
+
+    methodID = (*env)->GetMethodID(env, cls_sfr, "readNext",
+            "()[Ljava/lang/Object;");
+    if(methodID == NULL) {
+        puts("cant find readNext method");
+        return R_NilValue;
+    } 
+
+    jobject obj;
+    int cnt=0;
+
+    while(1) {
+        if(++cnt % 10000) {
+            printf("%d\n", cnt);
+        }
+        obj = (*env)->CallObjectMethod(env, rdr, methodID);
+        if((*env)->ExceptionOccurred(env)) {
+            (*env)->ExceptionDescribe(env);
+            (*env)->ExceptionClear(env);
+            return R_NilValue;
+        }
+    }
+    */
+
+    puts("ok");
     return R_NilValue;
 }
 

@@ -28,11 +28,18 @@ public class BulkRead {
         sasFileReader = new SasFileReaderImpl(fis);
         num_rows = sasFileReader.getSasFileProperties().getRowCount();
         columns = sasFileReader.getColumns();
+
+        // only for side-effects.. :/
+        getColtypes();
     }
     
     public SasFileReader getReader() {
         return sasFileReader;
     }
+
+    public native void cb_set_int(long ptr, int i);
+    public native void cb_set_string(long ptr, String str);
+    public native void cb_set_bytes(long ptr, byte[] s);
 
     public String[] getColnames() {
         if(columns == null)
@@ -114,6 +121,33 @@ public class BulkRead {
 
         return read_now;
     }
+
+    public int read_all() throws IOException {
+        int i;
+        for(i=0; i<num_rows; i++) {
+            if(i % 100000 == 0)
+                System.out.println(i);
+            Object[] o = sasFileReader.readNext();
+            for(int j=0; j<o.length; j++) {
+                if(col_types[j] == ColumnType.CT_NUMERIC) {
+                    int num = ((Number) o[j]).intValue();
+                    cb_set_int(0, num);
+                } 
+                else {
+                    String s = (String) o[j];
+                    cb_set_bytes(0, (s != null) ? s.getBytes() : null);
+                }
+                /*
+                else {
+                    String s = (String) o[j];
+                    cb_set_string(0, s);
+                } */
+            }
+        }
+        return i;
+    }
+
+
 
     public String[] getStrings(int column) {
         //ret[i]

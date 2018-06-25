@@ -7,9 +7,11 @@ onLoad = function(libname, pkgname) {
                     "."),
                   collapse=":")
     Sys.setenv("CLASSPATH"=mycp)
+    cat(mycp, "\n")
 
     options(java.parameters = "-Xmx2048m")
-    rJava::.jinit()
+    rJava::.jinit(mycp)
+
     #.jaddClassPath(system.file("java", "parso-2.0.9.jar", package="rparso"))
     #.jaddClassPath(system.file("java", "slf4j-api-1.7.25.jar", package="rparso"))
     #.jaddClassPath(system.file("java", "rparso.jar", package="rparso"))
@@ -72,14 +74,31 @@ read_parso = function(filename) {
 
 }
 
+rparso_init = function() {
+    mycp = paste0(c(system.file("java", "parso-2.0.9.jar", package="rparso"),
+                    system.file("java", "slf4j-api-1.7.25.jar", package="rparso"),
+                    system.file("java", "rparso.jar", package="rparso"),
+                    "."),
+                  collapse=":")
+
+    .Call("parso_init", mycp)
+}
+
 
 if(FALSE) {
     library(rJava)
+    library(rparso)
 
     .jnew("de/misc/rparso/BulkRead", "s")
 
-    .Call("parso_read_sas", "/home/ernst/mnt/bvs/Daten/DBABZUG20180619/tsch.sas7bdat")
 
     .jmethods("Ljava/io/FileInputStream;")
+
+    library(rparso)
+    rparso:::rparso_init()
+
+    print(system.time({
+        .Call("parso_read_sas", "/home/ernst/mnt/bvs/Daten/DBABZUG20180619/tsch.sas7bdat")
+    }))
 
 }
