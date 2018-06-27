@@ -76,6 +76,7 @@ SEXP rparso_set_df(SEXP df) {
     return R_NilValue;
 }
 
+/*
 void startJVM(const char *cp) {
     JavaVM *jvm;
     JNIEnv *env;
@@ -96,9 +97,10 @@ void startJVM(const char *cp) {
     free(cpopt);
 
     printf("ret = %d (jvm=%p)\n", ret, (void*)jvm);
-
 }
+*/
 
+/*
 int parso_num_rows(JNIEnv *env, jclass cls, jobject obj) {
     jmethodID methodID = (*env)->GetMethodID(env, cls, "getNumRows", "()J");
     if(methodID == NULL) {
@@ -108,6 +110,7 @@ int parso_num_rows(JNIEnv *env, jclass cls, jobject obj) {
     jlong l = (*env)->CallLongMethod(env, obj, methodID);
     return (int)l;
 }
+*/
 
 void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num) {
     SEXP r_col = VECTOR_ELT(current_df, col);
@@ -148,11 +151,14 @@ void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str) 
 }
 
 
+/*
 SEXP parso_init(SEXP cp) {
     startJVM(CHAR(STRING_ELT(cp, 0)));
     return R_NilValue;
 }
+*/
 
+#if 0
 SEXP parso_read_sas(SEXP filename) {
     if(!Rf_isString(filename)) {
         return R_NilValue;
@@ -273,4 +279,5 @@ SEXP parso_read_sas(SEXP filename) {
     puts("ok");
     return R_NilValue;
 }
+#endif /* 0 */
 

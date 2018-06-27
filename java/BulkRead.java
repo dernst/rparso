@@ -16,13 +16,13 @@ public class BulkRead {
     private long rows_read = 0;
     private List<Column> columns = null;
     private SasFileReader sasFileReader = null;
-    private Object[] ret = null;
+    //private Object[] ret = null;
     private int[] col_types = null;
 
-    private int chunk_size = 32768;
+    //private int chunk_size = 32768;
 
-    private String[] ret_strings = new String[chunk_size];
-    private int[] ret_ints = new int[chunk_size];
+    //private String[] ret_strings = new String[chunk_size];
+    //private int[] ret_ints = new int[chunk_size];
 
     public static void init(String sofn) {
         System.load(sofn);
@@ -35,6 +35,7 @@ public class BulkRead {
         columns = sasFileReader.getColumns();
 
         // only for side-effects.. :/
+        // TODO: fix
         getColtypes();
     }
     
@@ -83,7 +84,7 @@ public class BulkRead {
         return n;
     }
 
-
+    /*
     public int read_chunk() {
         int read_now = 0;
 
@@ -126,12 +127,15 @@ public class BulkRead {
 
         return read_now;
     }
+    */
 
     public int read_all() throws IOException {
         int i;
         for(i=0; i<num_rows; i++) {
+            /*
             if(i % 100000 == 0)
                 System.out.println(i);
+            */
             Object[] o = sasFileReader.readNext();
             for(int j=0; j<o.length; j++) {
                 if(col_types[j] == CT_NUMERIC) {
@@ -153,19 +157,16 @@ public class BulkRead {
     }
 
 
-
+    /*
     public String[] getStrings(int column) {
         //ret[i]
         //String[] r = new String[ret[0].length];
-        /*
-        for(int i=0; i<ret_strings.length; i++) {
-            ret_strings[i] = (String) ret[column][i];
-        }
-        */
         System.arraycopy((String[])ret[column], 0, ret_strings, 0, ret_strings.length);
         return ret_strings;
     }
-    
+    */
+   
+    /*
     public String getString(int column) {
         StringBuffer sb = new StringBuffer();
         String[] sa = (String[]) ret[column];
@@ -177,7 +178,9 @@ public class BulkRead {
         }
         return sb.toString();
     }
+    */
 
+    /*
     public int[] getInts(int column) {
         //int[] r = new int[ret[0].length];
         Number[] x = (Number[]) ret[column];
@@ -186,6 +189,6 @@ public class BulkRead {
         }
         return ret_ints;
     }
-
+    */
 };
 
