@@ -2,6 +2,49 @@
 #include <jni.h>
 #include <stdlib.h>
 
+
+SEXP current_df = NULL;
+
+void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num); 
+void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str);
+void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str);
+
+
+int register_natives(JNIEnv *env) {
+    jclass cls = (*env)->FindClass(env, "de/misc/rparso/BulkRead");
+    JNINativeMethod my_natives[3];
+    my_natives[0].name = "cb_set_int";
+    my_natives[0].signature = "(III)V";
+    my_natives[0].fnPtr = cb_set_int;
+
+    my_natives[1].name = "cb_set_string";
+    my_natives[1].signature = "(IILjava/lang/String;)V";
+    my_natives[1].fnPtr = cb_set_string;
+
+    my_natives[2].name = "cb_set_bytes";
+    my_natives[2].signature = "(II[B)V";
+    my_natives[2].fnPtr = cb_set_bytes;
+
+
+    if((*env)->RegisterNatives(env, cls, my_natives, 3) != 0) {
+        puts("RegisterNatives failed :(");
+        return 0;
+    }
+    return 1;
+}
+
+jint JNI_OnLoad(JavaVM* jvm, void* foo) {
+    puts("JNI_OnLoad was here");
+    JNIEnv *env = NULL;
+    (*jvm)->AttachCurrentThread(jvm, (void*)&env, 0);
+    if(env == NULL) {
+        puts("cant init rparso/JNI (error in AttachCurrentThread)");
+        return 0;
+    }
+    register_natives(env);
+    return JNI_VERSION_1_8;
+}
+
 JNIEnv* getEnv() {
     JavaVM *jvm = NULL;
     JNIEnv *env = NULL;
@@ -26,6 +69,11 @@ JNIEnv* getEnv() {
 
 
     return env;
+}
+
+SEXP rparso_set_df(SEXP df) {
+    current_df = df;
+    return R_NilValue;
 }
 
 void startJVM(const char *cp) {
@@ -61,11 +109,13 @@ int parso_num_rows(JNIEnv *env, jclass cls, jobject obj) {
     return (int)l;
 }
 
-void cb_set_int(JNIEnv *env, jobject obj, jlong ptr, jint num) {
+void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num) {
+    SEXP r_col = VECTOR_ELT(current_df, col);
+    INTEGER(r_col)[row] = num;
     return;
 }
 
-void cb_set_string(JNIEnv *env, jobject obj, jlong ptr, jstring str) {
+void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
     if(str == NULL) {
         //puts("> str NULL");
         return;
@@ -80,7 +130,21 @@ void cb_set_string(JNIEnv *env, jobject obj, jlong ptr, jstring str) {
     return;
 }
 
-void cb_set_bytes(JNIEnv *env, jobject obj, jlong ptr, jbyteArray str) {
+void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str) {
+    static char buf[4096];
+    if(str == NULL) {
+        return;
+    }
+
+    int len = (*env)->GetArrayLength(env, str);
+    if(len >= 4095)
+        len=4095;
+    //char *buf = (char*) malloc(sizeof(char)*len);
+    (*env)->GetByteArrayRegion(env, str, 0, len, (jbyte*)buf);
+
+    SEXP r_col = VECTOR_ELT(current_df, col);
+    SET_STRING_ELT(r_col, row, mkCharLen(buf, len));
+    //free(buf);
 }
 
 

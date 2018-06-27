@@ -1,4 +1,5 @@
 #' @import rJava
+# TODO: remove
 onLoad = function(libname, pkgname) {
 
     mycp = paste0(c(system.file("java", "parso-2.0.9.jar", package="rparso"),
@@ -16,6 +17,26 @@ onLoad = function(libname, pkgname) {
     #.jaddClassPath(system.file("java", "slf4j-api-1.7.25.jar", package="rparso"))
     #.jaddClassPath(system.file("java", "rparso.jar", package="rparso"))
 }
+
+init_rparso = function(libname, pkgname) {
+    library(rJava)
+    library(rparso)
+
+    .jinit()
+    .jaddClassPath(system.file("java", "parso-2.0.9.jar", package="rparso"))
+    .jaddClassPath(system.file("java", "slf4j-api-1.7.25.jar", package="rparso"))
+    .jaddClassPath(system.file("java", "rparso.jar", package="rparso"))
+
+    fn = system.file("libs", "rparso.so", package="rparso")
+    if(!file.exists(fn)) {
+        fn = system.file("src", "rparso.so", package="rparso")
+        if(!file.exists(fn))
+            stop("cant find rparso.so")
+    }
+
+    .jcall("de/misc/rparso/BulkRead", "V", "init", fn)
+}
+
 
 j_read_chunk = function(obj)
     .jcall(tst, "I", "read_chunk")
@@ -74,15 +95,15 @@ read_parso = function(filename) {
 
 }
 
-rparso_init = function() {
-    mycp = paste0(c(system.file("java", "parso-2.0.9.jar", package="rparso"),
-                    system.file("java", "slf4j-api-1.7.25.jar", package="rparso"),
-                    system.file("java", "rparso.jar", package="rparso"),
-                    "."),
-                  collapse=":")
-
-    .Call("parso_init", mycp)
-}
+#rparso_init = function() {
+#    mycp = paste0(c(system.file("java", "parso-2.0.9.jar", package="rparso"),
+#                    system.file("java", "slf4j-api-1.7.25.jar", package="rparso"),
+#                    system.file("java", "rparso.jar", package="rparso"),
+#                    "."),
+#                  collapse=":")
+#
+#    .Call("parso_init", mycp)
+#}
 
 
 if(FALSE) {
@@ -100,5 +121,31 @@ if(FALSE) {
     print(system.time({
         .Call("parso_read_sas", "/home/ernst/mnt/bvs/Daten/DBABZUG20180619/tsch.sas7bdat")
     }))
+
+
+    library(rJava)
+    library(rparso)
+
+    rparso:::init_rparso()
+
+    tst = .jnew("de/misc/rparso/BulkRead", "/home/ernst/mnt/bvs/Daten/DBABZUG20180619/tsch.sas7bdat")
+    num_rows = .jcall(tst, "J", "getNumRows")
+    xdf = lapply(.jcall(tst, "[Ljava/lang/String;", "getColtypes"), function(ct) {
+        if(ct == "java.lang.Number") {
+            integer(num_rows)
+        } else {
+            character(num_rows)
+        }
+    })
+
+    .Call("rparso_set_df", xdf)
+
+    print(system.time({
+    xx = .jcall(tst, "I", "read_all")
+    }))
+
+    x = as.data.frame(xdf)
+
+    xdf[[1]]
 
 }
