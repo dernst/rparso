@@ -1,4 +1,5 @@
 
+if(FALSE) {
 j_read_chunk = function(obj)
     .jcall(tst, "I", "read_chunk")
 
@@ -98,4 +99,5 @@ if(FALSE) {
 
     xdf[[1]]
 
+}
 }

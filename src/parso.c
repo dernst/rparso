@@ -2,20 +2,22 @@
 #include <jni.h>
 #include <stdlib.h>
 
-
 SEXP current_df = NULL;
+char *string_buffer = NULL;
+int string_buffer_size = 0;
 
 void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num); 
 void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str);
 void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str);
 
 
-int register_natives(JNIEnv *env) {
+static int register_natives(JNIEnv *env) {
     jclass cls = (*env)->FindClass(env, "de/misc/rparso/BulkRead");
+
     JNINativeMethod my_natives[3];
     my_natives[0].name = "cb_set_int";
     my_natives[0].signature = "(III)V";
-    my_natives[0].fnPtr = cb_set_int;
+    my_natives[0].fnPtr = (void*)cb_set_int;
 
     my_natives[1].name = "cb_set_string";
     my_natives[1].signature = "(IILjava/lang/String;)V";
@@ -27,24 +29,29 @@ int register_natives(JNIEnv *env) {
 
 
     if((*env)->RegisterNatives(env, cls, my_natives, 3) != 0) {
-        puts("RegisterNatives failed :(");
+        Rprintf("RegisterNatives failed\n");
         return 0;
     }
     return 1;
 }
 
 jint JNI_OnLoad(JavaVM* jvm, void* foo) {
-    puts("JNI_OnLoad was here");
+    //puts("JNI_OnLoad was here");
     JNIEnv *env = NULL;
     (*jvm)->AttachCurrentThread(jvm, (void*)&env, 0);
     if(env == NULL) {
-        puts("cant init rparso/JNI (error in AttachCurrentThread)");
+        Rprintf("cant init rparso/JNI (error in AttachCurrentThread)\n");
         return 0;
     }
-    register_natives(env);
+
+    if(!register_natives(env)) {
+        return 0;
+    }
+
     return JNI_VERSION_1_8;
 }
 
+/*
 JNIEnv* getEnv() {
     JavaVM *jvm = NULL;
     JNIEnv *env = NULL;
@@ -53,26 +60,37 @@ JNIEnv* getEnv() {
 
     res = JNI_GetCreatedJavaVMs(&jvm, 1, &l);
     if(res != 0) {
-        puts("JNI_GetCreatedJavaVMs failed");
+        Rprintf("JNI_GetCreatedJavaVMs failed\n");
         return NULL;
     }
     if(l < 1) {
-        puts("no java VM yet");
+        Rprintf("no java VM yet\n");
         return NULL;
     }
 
     res = (*jvm)->AttachCurrentThread(jvm, (void*)&env, 0);
     if(res != 0) {
-        puts("AttachCurrentThread failed");
+        Rprintf("AttachCurrentThread failed\n");
         return NULL;
     }
 
 
     return env;
 }
+*/
 
 SEXP rparso_set_df(SEXP df) {
     current_df = df;
+    return R_NilValue;
+}
+
+SEXP rparso_cleanup() {
+    current_df = R_NilValue;
+    if(string_buffer != NULL) {
+        free(string_buffer);
+    }
+    string_buffer = NULL;
+    string_buffer_size = -1;
     return R_NilValue;
 }
 
@@ -133,21 +151,34 @@ void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
     return;
 }
 
+static void string_buffer_ensure_size(int s) {
+    const int block_size = 4096;
+    //int new_size = s - (s % block_size) * block_size;
+
+    if(string_buffer == NULL) {
+        string_buffer_size = (s / block_size + 1) * block_size;
+        if(0) Rprintf("allocating s=%d, new size=%d\n", s, string_buffer_size);
+        string_buffer = (char*) malloc(sizeof(char) * string_buffer_size);
+    } else if(string_buffer_size < s){
+        if(0) Rprintf("growing buffer for s=%d (current size=%d)\n", s, string_buffer_size);
+        string_buffer_size = (s / block_size + 1) * block_size;
+        string_buffer = realloc(string_buffer, sizeof(char)*string_buffer_size);
+    }
+}
+
 void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str) {
-    static char buf[4096];
     if(str == NULL) {
         return;
     }
 
     int len = (*env)->GetArrayLength(env, str);
-    if(len >= 4095)
-        len=4095;
-    //char *buf = (char*) malloc(sizeof(char)*len);
-    (*env)->GetByteArrayRegion(env, str, 0, len, (jbyte*)buf);
+    string_buffer_ensure_size(len+1);
+
+    (*env)->GetByteArrayRegion(env, str, 0, len, (jbyte*)string_buffer);
 
     SEXP r_col = VECTOR_ELT(current_df, col);
-    SET_STRING_ELT(r_col, row, mkCharLen(buf, len));
-    //free(buf);
+    SEXP foo = mkCharLenCE(string_buffer, len, CE_UTF8);
+    SET_STRING_ELT(r_col, row, foo);
 }
 
 
@@ -280,4 +311,19 @@ SEXP parso_read_sas(SEXP filename) {
     return R_NilValue;
 }
 #endif /* 0 */
+
+
+static const R_CallMethodDef callMethods[]  = {
+      {"rparso_set_df", (DL_FUNC) &rparso_set_df, 1},
+      {"rparso_cleanup", (DL_FUNC) &rparso_cleanup, 0},
+      {NULL, NULL, 0}
+};
+
+void
+R_init_rparso(DllInfo *info)
+{
+    R_registerRoutines(info, NULL, callMethods, NULL, NULL);
+    R_useDynamicSymbols(info, FALSE);
+    R_forceSymbols(info, TRUE);
+}
 

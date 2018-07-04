@@ -144,7 +144,7 @@ public class BulkRead {
                 } 
                 else {
                     String s = (String) o[j];
-                    cb_set_bytes(j, i, (s != null) ? s.getBytes() : null);
+                    cb_set_bytes(j, i, (s != null) ? s.getBytes("UTF-8") : null);
                 }
                 /*
                 else {

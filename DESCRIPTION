@@ -1,11 +1,13 @@
 Package: rparso
-Title: What the Package Does (one line, title case)
-Version: 0.0.0.9000
-Authors@R: person("Dominik", "Ernst", email = "dominik.ernst@statistik.gv.at", role = c("aut", "cre"))
+Title: The Package Reads Sas7bdat Files Using the Parso Java Library
+Version: 0.1
+Author: Dominik Ernst [aut, cre]
+Maintainer: Dominik Ernst <dernst@gmx.de>
+Authors@R: person("Dominik", "Ernst", email = "dernst@gmx.de", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
-Depends: R (>= 3.4.2)
-Imports: methods, rJava
-License: MIT
+Depends: R (>= 3.4.0)
+Imports: rJava, data.table
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.0.1
