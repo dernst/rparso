@@ -6,6 +6,7 @@ SEXP current_df = NULL;
 char *string_buffer = NULL;
 int string_buffer_size = 0;
 
+void cb_set_numeric(JNIEnv *env, jobject obj, jint col, jint row, jdouble num); 
 void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num); 
 void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str);
 void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str);
@@ -14,7 +15,7 @@ void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str);
 static int register_natives(JNIEnv *env) {
     jclass cls = (*env)->FindClass(env, "de/misc/rparso/BulkRead");
 
-    JNINativeMethod my_natives[3];
+    JNINativeMethod my_natives[4];
     my_natives[0].name = "cb_set_int";
     my_natives[0].signature = "(III)V";
     my_natives[0].fnPtr = (void*)cb_set_int;
@@ -27,8 +28,12 @@ static int register_natives(JNIEnv *env) {
     my_natives[2].signature = "(II[B)V";
     my_natives[2].fnPtr = cb_set_bytes;
 
+    my_natives[3].name = "cb_set_numeric";
+    my_natives[3].signature = "(IID)V";
+    my_natives[3].fnPtr = (void*)cb_set_numeric;
 
-    if((*env)->RegisterNatives(env, cls, my_natives, 3) != 0) {
+
+    if((*env)->RegisterNatives(env, cls, my_natives, 4) != 0) {
         Rprintf("RegisterNatives failed\n");
         return 0;
     }
@@ -135,6 +140,13 @@ void cb_set_int(JNIEnv *env, jobject obj, jint col, jint row, jint num) {
     INTEGER(r_col)[row] = num;
     return;
 }
+
+void cb_set_numeric(JNIEnv *env, jobject obj, jint col, jint row, jdouble num) {
+    SEXP r_col = VECTOR_ELT(current_df, col);
+    REAL(r_col)[row] = num;
+    return;
+}
+
 
 void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
     if(str == NULL) {

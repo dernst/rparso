@@ -2,9 +2,14 @@ package de.misc.rparso;
 
 import java.io.*;
 import java.util.List;
+import java.util.Arrays;
 import com.epam.parso.SasFileReader;
 import com.epam.parso.Column;
+import com.epam.parso.impl.SasFileParser;
 import com.epam.parso.impl.SasFileReaderImpl;
+
+import java.lang.reflect.Field;
+
 
 
 public class BulkRead {
@@ -16,8 +21,11 @@ public class BulkRead {
     private long rows_read = 0;
     private List<Column> columns = null;
     private SasFileReader sasFileReader = null;
-    //private Object[] ret = null;
     private int[] col_types = null;
+
+    private int max_rows = -1;
+    private int skip_rows = -1;
+    private List<String> select_colnames = null;
 
     //private int chunk_size = 32768;
 
@@ -28,9 +36,11 @@ public class BulkRead {
         System.load(sofn);
     }
 
-    public BulkRead(String filename) throws IOException {
+    public BulkRead(String filename, String encoding) throws IOException {
         FileInputStream fis = new FileInputStream(filename);
         sasFileReader = new SasFileReaderImpl(fis);
+        if(encoding != null)
+            set_encoding(encoding);
         num_rows = sasFileReader.getSasFileProperties().getRowCount();
         columns = sasFileReader.getColumns();
 
@@ -38,14 +48,92 @@ public class BulkRead {
         // TODO: fix
         getColtypes();
     }
+
+    public BulkRead(String filename) throws IOException {
+        this(filename, null);
+    }
+
+    // temporary(?) workaround
+    private void set_encoding(String enc) {
+        try {
+            Field f = sasFileReader.getClass().getDeclaredField("sasFileParser");
+            f.setAccessible(true);
+            SasFileParser sfp = (SasFileParser) f.get(sasFileReader);
+
+            f = sfp.getClass().getDeclaredField("encoding");
+            f.setAccessible(true);
+
+            f.set(sfp, (Object) enc);
+        } catch(Exception e) {
+            //TODO: do something maybe
+        }
+    }
     
     public SasFileReader getReader() {
         return sasFileReader;
     }
 
     public native void cb_set_int(int col, int row, int i);
+    public native void cb_set_numeric(int col, int row, double i);
     public native void cb_set_string(int col, int row, String str);
     public native void cb_set_bytes(int col, int row, byte[] s);
+
+
+    public void setSkipRows(int n) {
+        this.skip_rows = n;
+    }
+
+    public void setMaxRows(int n) {
+        this.max_rows = n;
+    }
+
+    public void setSelectColnames(String[] names) {
+        this.select_colnames = Arrays.asList(names); //new ArrayList<String>(names);
+    }
+
+    public long getNumRows() {
+        return num_rows;
+    }
+
+    public int getActualRows() {
+        int rows_to_read = (int)num_rows;
+        if(skip_rows > 0) {
+            rows_to_read = (int)num_rows - skip_rows;
+        }
+        if(max_rows > 0) {
+            rows_to_read = Math.min(rows_to_read, max_rows);
+        }
+        return rows_to_read;
+    }
+
+
+    private int[] getColIndexes() {
+        int num_cols = columns.size();
+        if(select_colnames != null)
+            num_cols = select_colnames.size();
+        int[] idx = new int[num_cols];
+
+        if(select_colnames != null) {
+            for(int i=0; i<num_cols; i++) {
+                idx[i] = -1;
+                // welches nicht gefunden?
+                for(int j=0; j<columns.size(); j++) {
+                    //System.out.println("`" + columns.get(j).getName() + "'");
+                    if(columns.get(j).getName().equals(select_colnames.get(i))) {
+                        //System.out.println("boo");
+                        idx[i] = j;
+                        break;
+                    }
+                }
+            }
+        } else {
+            for(int i=0; i<num_cols; i++) {
+                idx[i] = i;
+            }
+        }
+        
+        return idx;
+    }
 
     public String[] getColnames() {
         if(columns == null)
@@ -59,20 +147,19 @@ public class BulkRead {
         return n;
     }
 
-    public long getNumRows() {
-        return num_rows;
-    }
-
     public String[] getColtypes() {
         if(columns == null)
             return null;
+       
+        int[] idx = getColIndexes();
+        final int num_cols = idx.length;
 
-        if(col_types == null)
-            col_types = new int[columns.size()];
+        if(col_types == null || col_types.length != num_cols)
+            col_types = new int[num_cols];
 
-        String n[] = new String[columns.size()];
-        for(int i=0; i<columns.size(); i++) {
-            Class<?> c = columns.get(i).getType();
+        String n[] = new String[num_cols];
+        for(int i=0; i<num_cols; i++) {
+            Class<?> c = columns.get(idx[i]).getType();
             n[i] = c.getCanonicalName();
 
             if(n[i] == "java.lang.Number")
@@ -131,16 +218,25 @@ public class BulkRead {
 
     public int read_all() throws IOException {
         int i;
-        for(i=0; i<num_rows; i++) {
+        int rows_to_read = getActualRows();
+
+        if(skip_rows > 0) {
+            for(i=0; i<skip_rows; i++)
+                sasFileReader.readNext();
+        }
+
+        for(i=0; i<rows_to_read; i++) {
             /*
             if(i % 100000 == 0)
                 System.out.println(i);
             */
-            Object[] o = sasFileReader.readNext();
+            Object[] o = sasFileReader.readNext(select_colnames);
             for(int j=0; j<o.length; j++) {
                 if(col_types[j] == CT_NUMERIC) {
-                    int num = ((Number) o[j]).intValue();
-                    cb_set_int(j, i, num);
+                    //int num = ((Number) o[j]).intValue();
+                    //cb_set_int(j, i, num);
+                    double num = ((Number) o[j]).doubleValue();
+                    cb_set_numeric(j, i, num);
                 } 
                 else {
                     String s = (String) o[j];
