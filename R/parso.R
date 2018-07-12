@@ -23,6 +23,11 @@ NULL
 
 #' Read a sa7bdat file via EPAMs parso library
 #' @param filename The filename of the file to read
+#' @param nrow Number of rows to read
+#' @param skip Number of rows to skip
+#' @param select Character vector of column names to read
+#' @param encoding Character encoding of the strings contained in the sas file.
+#'                 For example 'UTF-8' or 'ISO-8859-1'.
 #' @export
 read_parso = function(filename, nrow=NULL, skip=NULL, select=NULL, encoding=NULL) {
     if(!is.null(encoding)) {
