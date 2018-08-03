@@ -232,21 +232,24 @@ public class BulkRead {
             */
             Object[] o = sasFileReader.readNext(select_colnames);
             for(int j=0; j<o.length; j++) {
+                if(o[j] == null) continue;
+
                 if(col_types[j] == CT_NUMERIC) {
                     //int num = ((Number) o[j]).intValue();
                     //cb_set_int(j, i, num);
                     double num = ((Number) o[j]).doubleValue();
                     cb_set_numeric(j, i, num);
                 } 
+                /*
                 else {
                     String s = (String) o[j];
                     cb_set_bytes(j, i, (s != null) ? s.getBytes("UTF-8") : null);
                 }
-                /*
+                */
                 else {
                     String s = (String) o[j];
-                    cb_set_string(0, s);
-                } */
+                    cb_set_string(j, i, s);
+                }
             }
         }
         return i;

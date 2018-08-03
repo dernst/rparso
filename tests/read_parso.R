@@ -14,7 +14,9 @@ if(FALSE) {
     x = read_parso(fn, select=c("Petal_Length", "Sepal_Length"))
 
 
-    x = read_parso(path.expand("~/mnt/bvs/Daten/DBABZUG20180627/tsch.sas7bdat"), nrow=100, encoding="UTF-8")
+    gcinfo(TRUE)
+    x = read_parso(path.expand("~/mnt/bvs/Daten/DBABZUG20180627/tsch.sas7bdat"), encoding="UTF-8")
+    gc.time(TRUE)
 
 
     print(system.time({

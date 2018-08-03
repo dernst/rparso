@@ -1,12 +1,12 @@
 Package: rparso
-Title: The Package Reads Sas7bdat Files Using the Parso Java Library
+Title: The Package Reads 'Sas7bdat' Files Using the 'Parso' Java Library
 Version: 0.1
 Author: Dominik Ernst [aut, cre]
 Maintainer: Dominik Ernst <dernst@gmx.de>
 Authors@R: person("Dominik", "Ernst", email = "dernst@gmx.de", role = c("aut", "cre"))
 Description: What the package does (one paragraph).
 Depends: R (>= 3.4.0)
-Imports: rJava, data.table
+Imports: rJava
 Suggests: rmarkdown, knitr
 License: MIT + file LICENSE
 Encoding: UTF-8

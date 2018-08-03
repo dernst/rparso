@@ -40,8 +40,12 @@ static int register_natives(JNIEnv *env) {
     return 1;
 }
 
-jint JNI_OnLoad(JavaVM* jvm, void* foo) {
-    //puts("JNI_OnLoad was here");
+JNIEXPORT jint JNICALL
+JNI_OnLoad(JavaVM *jvm, void *reserved) {
+
+
+//jint JNI_OnLoad(JavaVM* jvm, void* foo) {
+//puts("JNI_OnLoad was here");
     JNIEnv *env = NULL;
     (*jvm)->AttachCurrentThread(jvm, (void*)&env, 0);
     if(env == NULL) {
@@ -147,22 +151,6 @@ void cb_set_numeric(JNIEnv *env, jobject obj, jint col, jint row, jdouble num) {
     return;
 }
 
-
-void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
-    if(str == NULL) {
-        //puts("> str NULL");
-        return;
-    }
-    const char *c = (*env)->GetStringUTFChars(env, str, NULL);
-    if(c == NULL) {
-        //puts("> c NULL");
-        return;
-    }
-    //printf("%s\n", c);
-    (*env)->ReleaseStringUTFChars(env, str, c);
-    return;
-}
-
 static void string_buffer_ensure_size(int s) {
     const int block_size = 4096;
     //int new_size = s - (s % block_size) * block_size;
@@ -176,6 +164,24 @@ static void string_buffer_ensure_size(int s) {
         string_buffer_size = (s / block_size + 1) * block_size;
         string_buffer = realloc(string_buffer, sizeof(char)*string_buffer_size);
     }
+}
+
+
+void cb_set_string(JNIEnv *env, jobject obj, jint col, jint row, jstring str) {
+    if(str == NULL) {
+        return;
+    }
+
+    int len = (*env)->GetStringLength(env, str);
+    string_buffer_ensure_size(len+1);
+
+    (*env)->GetStringUTFRegion(env, str, 0, len, (char*)string_buffer);
+
+    SEXP r_col = VECTOR_ELT(current_df, col);
+    SEXP foo = mkCharLenCE(string_buffer, len, CE_UTF8);
+    SET_STRING_ELT(r_col, row, foo);
+
+    return;
 }
 
 void cb_set_bytes(JNIEnv *env, jobject obj, jint col, jint row, jbyteArray str) {

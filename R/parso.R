@@ -1,5 +1,4 @@
 #' @import rJava
-#' @import data.table
 #' @useDynLib rparso
 NULL
 
@@ -60,9 +59,11 @@ read_parso = function(filename, nrow=NULL, skip=NULL, select=NULL, encoding=NULL
 
     xdf = lapply(.jcall(tst, "[Ljava/lang/String;", "getColtypes"), function(ct) {
         if(ct == "java.lang.Number") {
-            double(num_rows)
+            #double(num_rows)
+            rep(NA_real_, num_rows)
         } else {
-            character(num_rows)
+            #character(num_rows)
+            rep(NA_character_, num_rows)
         }
     })
 
@@ -75,14 +76,30 @@ read_parso = function(filename, nrow=NULL, skip=NULL, select=NULL, encoding=NULL
 
 
     names(xdf) = colnames_
-    setDT(xdf)
+    #setDT(xdf)
+
+    attr(xdf, "row.names") <- c(NA_integer_, length(xdf[[1]]))
+    class(xdf) <- "data.frame"
+
     xdf
 }
 
 
 if(FALSE) {
+
+    print(system.time({
     x = read_parso(path.expand("~/mnt/bvs/Daten/DBABZUG20180627/tsch.sas7bdat"))
+    }))
+
     x = read_parso(path.expand("~/mnt/bvs/Daten/DBABZUG20180627/tschind.sas7bdat"))
+
+    print(system.time({
+    xx=read_parso(path.expand("~/mnt/bvs/Daten/Daten_von_Reg/chancenindex.sas7bdat"))
+    }))
+
+    print(system.time({
+        xx = haven::read_sas("~/mnt/bvs/Daten/Daten_von_Reg/chancenindex.sas7bdat")
+    }))
 
 }
 
