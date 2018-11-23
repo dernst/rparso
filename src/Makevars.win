@@ -1,0 +1,5 @@
+
+PKG_CPPFLAGS=$(JAVA_CPPFLAGS) -I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/win32
+PKG_CFLAGS=
+PKG_LIBS=$(JAVA_LIBS) -L$(JAVA_HOME)/bin/server -L$(JAVA_HOME)/bin
+
